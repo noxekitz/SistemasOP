@@ -14,17 +14,13 @@
 #define UMBRAL_MEDIO 750
 #define UMBRAL_BAJO 450
 
-//DA ERROR MIRAR PQ
-//sigset_t mask, oldmask;
-
 int pipe1[2], pipe2[2];
 
 volatile sig_atomic_t sigusr1_recibida = 0;
 
+sigset_t mask, oldmask;
+
 void sigusr1(int signo){
-  if (signo == SIGUSR1){
-    sigusr1_recibida = 1;
-  }
 }
 
 //POR AHORA SON VOID POR PONER ALGO, NSE SI NECESITARAN MAS PARAMETROS O RETURNEAR ALGO
@@ -45,9 +41,8 @@ void processo_hijo(int N){
   for (i = 0; i < N; i++)
   {
     //Esperamos que el processo reciba la senyal SI
-    while(!sigusr1_recibida){};
-    sigusr1_recibida = 0;
-
+    sigsuspend(&oldmask);
+    
     //Leemos el limite de extraccion enviado por el padre
     read(pipe1[0], &limite, sizeof(double));
 
@@ -79,17 +74,22 @@ double calcular_recuperacion(double recursos_actuales) {
   // Asigna variación según probabilidades
   if (evento < 75) {
       variacion = 0;  // 75% de probabilidad: condiciones normales
-      printf("Este año se han producido condiciones normales de recuperación");
+      printf("Este año se han producido condiciones normales de recuperación\n");
   } else if (evento >= 75 && evento < 90) {
       variacion = -15;  // 15% de probabilidad: condiciones adversas
-      printf("Este año se han producido condiciones adversas de recuperación");
+      printf("Este año se han producido condiciones adversas de recuperación\n");
   } else {
       variacion = 10;  // 10% de probabilidad: condiciones favorables
-      printf("Este año se han producido condiciones favorables de recuperación");
+      printf("Este año se han producido condiciones favorables de recuperación\n");
   }
 
   // Calcula el porcentaje final (no menor a cero)
-  porcentaje = max(porcentaje_base + variacion, 0);
+  if(porcentaje_base+variacion>0){
+    porcentaje = porcentaje_base + variacion;
+  }
+  else{
+    porcentaje = 0;
+  }
   printf("El porcentaje de recuperación es del: %.6f\n", porcentaje);
 
   // Retorna la cantidad a incrementar (porcentaje aplicado a recursos actuales)
@@ -106,6 +106,8 @@ void processo_padre(pid_t pid1, pid_t pid2, int N, double lim_alto, double lim_m
   // Cierra extremos no usados de las tuberías
   close(pipe1[0]);  // Padre no lee de pipe1
   close(pipe2[1]);  // Padre no escribe en pipe2
+
+  sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
   // Bucle principal por cada año de simulación
   for (i = 0; i < N; i++) {
@@ -158,7 +160,12 @@ void processo_padre(pid_t pid1, pid_t pid2, int N, double lim_alto, double lim_m
       // Calcula recuperación anual
       recursos_aux = recursos_disponibles;
       recursos_recuperados = calcular_recuperacion(recursos_disponibles);
-      recursos_disponibles = min(recursos_disponibles + recursos_recuperados, CAPACIDAD_CARGA);
+      if(recursos_disponibles+recursos_recuperados > CAPACIDAD_CARGA) {
+          recursos_disponibles = CAPACIDAD_CARGA;
+      }
+      else{
+          recursos_disponibles += recursos_recuperados;
+      }
 
       // Ajuste si se alcanza la capacidad máxima
       if (recursos_disponibles == CAPACIDAD_CARGA) {
@@ -183,7 +190,6 @@ int main(int argc, char *argv[])
   double lim_alto, lim_medio, lim_bajo;
   int N;
   pid_t pid1, pid2;
-
 
 
   if (argc != 5)
@@ -217,6 +223,11 @@ int main(int argc, char *argv[])
 
   //Se registra la funcion para manejar la señal SIGURS1
   signal(SIGUSR1, sigusr1);
+  //Se bloquea la señal SIGUSR1 para evitar que el padre la reciba
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGUSR1);
+  sigprocmask(SIG_BLOCK, &mask, &oldmask);
+  
 
   //Creamos el primer proceso hijo
   pid1 = fork();
@@ -229,11 +240,13 @@ int main(int argc, char *argv[])
     processo_hijo(N);
   }
 
-
-
-
-
-      // TO-BE-DONE
+  //Proceso padre
+  if(pid1 != 0 && pid2 != 0){
+    processo_padre(pid1, pid2, N, lim_alto, lim_medio, lim_bajo);
+    //El padre espera a que terminen los hijos
+    wait(NULL);
+    wait(NULL);
+  }
 
   return 0;
 }
