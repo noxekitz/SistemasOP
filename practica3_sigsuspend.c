@@ -23,8 +23,6 @@ sigset_t mask, oldmask;
 void sigusr1(int signo){
 }
 
-//POR AHORA SON VOID POR PONER ALGO, NSE SI NECESITARAN MAS PARAMETROS O RETURNEAR ALGO
-//PENSAR SI LOS READ I WRITE SE HAN DE METER EN IF POR SI HAY ERROR LEYENDO O ESCRIBIENDO
 //Funcion para los procesos hijos
 void processo_hijo(int N){
   int i;
@@ -55,7 +53,7 @@ void processo_hijo(int N){
 };
 // Calcula la recuperación anual de recursos basada en condiciones aleatorias
 // Recibe: recursos_actuales (cantidad disponible actual)
-// Retorna: cantidad a incrementar (puede ser cero o negativa en casos adversos)
+// Retorna: cantidad a incrementar 
 double calcular_recuperacion(double recursos_actuales) {
   double porcentaje, porcentaje_base, variacion;
   int evento;
