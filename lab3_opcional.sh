@@ -4,7 +4,9 @@ ejecutable="./ejecutable.exe"
 fichero_salida="salida.txt"
 n=1
 
-gcc practica3_2425_plantilla.c -o ejecutable.exe
+gcc practica3.c -o ejecutable.exe
+#Para ejecutar el Opcional 1 con el Opcional 2 
+#gcc practica3_sigsuspend.c -o ejecutable_sigsuspend.exe 
 
 echo "Límite Alto | Límite Medio | Límite Bajo | Recursos Totales"
 echo "----------------------------------------------------------"
